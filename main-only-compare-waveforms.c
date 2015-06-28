@@ -5,7 +5,7 @@
 //	Description:
 //		An algorithm similar to Delta-Sigma conversion is calculating
 //		for each "clock" (1 clock at each N'th WDT interrupt) the value of
-//		each output bit. All bits are outputted to LED's during WDT interrupt.
+//		each output bit. All bits are outputed to LED's during WDT interrupt.
 //
 //		The algorithm is used once for each channel, in order to calculate
 //		the output value of each Delta-Sigma ADC using "synthetic division",
@@ -24,17 +24,17 @@
 //			- output frequency spectrum is more spread in Delta-Sigma
 //
 //	Application:
-//		Four multicolour LED's, two RGB and two RG, are shifting their colour
+//		Four multicolor LED's, two RGB and two RG, are shifting their colour
 //		with independent speed, resolution and number of steps for each LED.
 //
 //	Schematics: MSP430G2211 at 3.6V with
-//		P1.0 - RGB_LED_1 Red bit	(100 ohm, common anode)
-//		P1.1 - RGB_LED_1 Green bit	(100 ohm, common anode)
-//		P1.2 - RGB_LED_1 Blue bit	( 33 ohm, common anode)
+//		P1.0 - RGB_LED_1 Red bit	(100 ohm, common anod)
+//		P1.1 - RGB_LED_1 Green bit	(100 ohm, common anod)
+//		P1.2 - RGB_LED_1 Blue bit	( 33 ohm, common anod)
 //
-//		P1.3 - RGB_LED_2 Red bit	(100 ohm, common anode)
-//		P1.4 - RGB_LED_2 Green bit	(100 ohm, common anode)
-//		P1.5 - RGB_LED_2 Blue bit	( 33 ohm, common anode)
+//		P1.3 - RGB_LED_2 Red bit	(100 ohm, common anod)
+//		P1.4 - RGB_LED_2 Green bit	(100 ohm, common anod)
+//		P1.5 - RGB_LED_2 Blue bit	( 33 ohm, common anod)
 //
 //		P1.6 - RG_LED_1 Red bit		(100 ohm, common cathode)
 //		P1.7 - RG_LED_1 Green bit	(100 ohm, common cathode)
@@ -48,8 +48,8 @@
 //
 //  Author: RoGeorge
 //
-//  2012.06.02	v1.0
-//  Built with CCS Version 4.2.4
+//  2015.06.27	v0.1
+//  Built with CCS Version 6.1.0
 //******************************************************************************
 
 #include "msp430g2211.h"
@@ -69,8 +69,8 @@
 //------------------------------------------------------------------------------
 #define MAX_CH_0_2		200	// Distinct possible steps between 0-100%
 #define MAX_CH_3_5		200	// Distinct possible steps between 0-100%
-#define MAX_CH_6_7		100	// Distinct possible steps between 0-100%
-#define MAX_CH_8_9		150	// Distinct possible steps between 0-100%
+#define MAX_CH_6_7		255	// Distinct possible steps between 0-100%
+#define MAX_CH_8_9		255	// Distinct possible steps between 0-100%
 
 #define STEPS_CH_0_2		100		    // Nr of equidistant used steps
 #define INC_CH_0_2		MAX_CH_0_2/STEPS_CH_0_2	// Increment for one step
@@ -78,10 +78,10 @@
 #define STEPS_CH_3_5		100			// Nr of equidistant used steps
 #define INC_CH_3_5		MAX_CH_3_5/STEPS_CH_3_5	// Increment for one step
 
-#define STEPS_CH_6_7		50			// Nr of equidistant used steps
+#define STEPS_CH_6_7		255			// Nr of equidistant used steps
 #define INC_CH_6_7		MAX_CH_6_7/STEPS_CH_6_7	// Increment for one step
 
-#define STEPS_CH_8_9		150			// Nr of equidistant used steps
+#define STEPS_CH_8_9		255			// Nr of equidistant used steps
 #define INC_CH_8_9		MAX_CH_8_9/STEPS_CH_8_9	// Increment for one step
 
 //------------------------------------------------------------------------------
@@ -104,6 +104,7 @@ void calc_CH_8_TO_9();
 void calc_output_bits();
 
 
+#define FIX 224
 
 void main(void) {
 //------------------------------------------------------------------------------
@@ -234,13 +235,17 @@ void calc_CH_6_TO_7() {
 		req[6] -= INC_CH_6_7;	//decrease Red
 
 	if (++stCnt >= 4*STEPS_CH_6_7) stCnt = 0;    //++stCnt modulo 4*STEPS_CH_6_7
+
+	req[6] = FIX;
+	req[7] = FIX;
 }
 
 void calc_CH_8_TO_9() {
 //------------------------------------------------------------------------------
 // Calculate next input values for modulators 8, 9 (RG_LED_2 color envelope)
 //------------------------------------------------------------------------------
-	static int stCnt = 2*STEPS_CH_8_9;	    //envelope state counter
+	static int stCnt = 0;		            //envelope state counter
+//	static int stCnt = 2*STEPS_CH_8_9;	    //envelope state counter
 
 	if ((stCnt >= 0*STEPS_CH_8_9) && (stCnt < 1*STEPS_CH_8_9))
 		req[9] += INC_CH_8_9;	//increase Green
@@ -252,22 +257,39 @@ void calc_CH_8_TO_9() {
 		req[8] -= INC_CH_8_9;	//decrease Red
 	
 	if (++stCnt >= 4*STEPS_CH_8_9) stCnt = 0;    //++stCnt modulo 4*STEPS_CH_8_9
+
+	req[8] = FIX;
+	req[9] = FIX;
+
 }
 
 void calc_output_bits() {
 //------------------------------------------------------------------------------
 // Calculate the output bit for each Delta-Sigma modulator
 //------------------------------------------------------------------------------
-	int n;						// Modulator (channel) number
+	int n;							// Modulator (channel) number
 
-	for (n = N_CH - 1; n >= 0; --n) {	// For each Delta-Sigma modulator
-		outBits <<= 1;			// Rotate previously calculated bits
-// Sigma delta modulation algorithm using "synthetic division"
-		sum[n] += req[n];		// Update integrator value
-		if (sum[n] < max[n])
-			outBits++;			// LSB = 1
-		else
-			sum[n] -= max[n];	// LSB = 0 (untouched) and adjust integrator
+	for (n = N_CH - 1; n >= 0; --n) {	// For each modulator
+		outBits <<= 1;				// Rotate previously calculated bits
+
+		if (n > 7) {				// For channel 8 and 9 use PWM
+// PWM modulation algorithm just for comparison purpose, channels 8 and 9
+			sum[n] += INC_CH_8_9;	// Update integrator value
+			if (sum[n] > MAX_CH_8_9) sum[n] = 0;
+			if (sum[n] > req[n])
+				outBits++;			// LSB = 1
+//			else
+//				;					// LSB = 0 (untached)
+		}
+
+		else {
+// Sigma delta modulation algorithm using "synthetic division", channels 0 to 7
+			sum[n] += req[n];		// Update integrator value
+			if (sum[n] < max[n])
+				outBits++;			// LSB = 1
+			else
+				sum[n] -= max[n];	// LSB = 0 (untached) and adjust integrator
+		}
 	}
 }
 
