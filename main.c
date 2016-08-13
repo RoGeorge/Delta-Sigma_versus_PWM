@@ -261,7 +261,7 @@ void calc_output_bits() {
 	int n;						// Modulator (channel) number
 
 	for (n = N_CH - 1; n >= 0; --n) {	// For each Delta-Sigma modulator
-		outBits <<= 1;			// Rotate previously calculated bits
+		outBits <<= 1;			// Shift previously calculated bits
 // Sigma delta modulation algorithm using "synthetic division"
 		sum[n] += req[n];		// Update integrator value
 		if (sum[n] < max[n])

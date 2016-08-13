@@ -270,7 +270,7 @@ void calc_output_bits() {
 	int n;							// Modulator (channel) number
 
 	for (n = N_CH - 1; n >= 0; --n) {	// For each modulator
-		outBits <<= 1;				// Rotate previously calculated bits
+		outBits <<= 1;				// Shift previously calculated bits
 
 		if (n > 7) {				// For channel 8 and 9 use PWM
 // PWM modulation algorithm just for comparison purpose, channels 8 and 9
